@@ -31,8 +31,15 @@ Save this file as `images.txt` or provide a custom file via the command line.
 python create_proxy_sheet.py --input images.txt --output proxies.pdf
 ```
 
+Specify a custom background colour with `--background` using a hex value:
+
+```bash
+python create_proxy_sheet.py --input images.txt --output proxies.pdf --background #FFCC00
+```
+
 The resulting `proxies.pdf` will contain the cards laid out in a grid with 10&nbsp;mm margins and 5&nbsp;mm padding.
 
 ## Customisation
 
 Card dimensions, margins and padding are defined at the top of `create_proxy_sheet.py` in millimetres. Adjust these constants to suit your specific printing requirements.
+You can also change the colour used behind each card image with the `--background` option.
