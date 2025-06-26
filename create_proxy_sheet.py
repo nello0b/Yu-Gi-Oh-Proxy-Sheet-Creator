@@ -1,75 +1,88 @@
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
-from PIL import Image
+"""Create a PDF sheet of card proxies from a list of image paths."""
+
+from __future__ import annotations
+
+import argparse
 import os
+from typing import List
 
-# pip install reportlab pillow
-# python create_proxy_sheet.py
+from PIL import Image
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
-# --- CONFIG ---
-page_width, page_height = A4
-image_width = 59 * mm
-image_height = 86 * mm
-margin_x = 10 * mm
-margin_y = 10 * mm
-padding_x = 5 * mm
-padding_y = 5 * mm
-input_file = 'images.txt'
-output_pdf = 'output.pdf'
 
-# DPI settings for high quality
-target_dpi = 300
-mm_to_inch = 25.4  # 1 inch = 25.4 mm
+# Layout configuration (in millimetres)
+IMAGE_WIDTH_MM = 59
+IMAGE_HEIGHT_MM = 86
+MARGIN_MM = 10
+PADDING_MM = 5
 
-# --- LOAD IMAGE LIST ---
-image_list = []
-with open(input_file, 'r') as f:
-    for line in f:
-        if line.strip():
-            name, count = line.strip().split()
-            image_list.extend([name] * int(count))
+# DPI settings for high quality output
+TARGET_DPI = 300
+MM_TO_INCH = 25.4
 
-# --- INIT PDF ---
-c = canvas.Canvas(output_pdf, pagesize=A4)
-# Set PDF to high quality mode
-c.setPageCompression(0)  # Disable compression for maximum quality
 
-# --- CALCULATE GRID ---
-cols = int((page_width - 2 * margin_x + padding_x) // (image_width + padding_x))
-rows = int((page_height - 2 * margin_y + padding_y) // (image_height + padding_y))
+def load_image_list(path: str) -> List[str]:
+    """Return a flat list of image paths from ``path``.
 
-x_start = margin_x
-y_start = page_height - margin_y - image_height
+    Each line in ``path`` should contain an image file followed by the
+    number of copies to include in the PDF.
+    """
 
-x = x_start
-y = y_start
-col = 0
-row = 0
+    images: List[str] = []
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            name, count = line.split()
+            images.extend([name] * int(count))
+    return images
 
-# --- DRAW IMAGES ---
-for image_path in image_list:
-    if not os.path.exists(image_path):
-        continue  # Skip missing files
 
-    try:
-        # Calculate target pixel dimensions for 300 DPI
-        target_width_pixels = int((image_width / mm_to_inch) * target_dpi)
-        target_height_pixels = int((image_height / mm_to_inch) * target_dpi)
-        
-        # Open and resize image with high quality resampling
-        img = Image.open(image_path)
-        
-        # Use LANCZOS for high-quality resampling
-        img_resized = img.resize((target_width_pixels, target_height_pixels), Image.Resampling.LANCZOS)
-        
-        # Save with high quality settings
-        temp_img = image_path + "_resized.png"
-        img_resized.save(temp_img, "PNG", optimize=False, compress_level=1, dpi=(target_dpi, target_dpi))
+def create_proxy_sheet(image_list: List[str], output_pdf: str) -> None:
+    """Generate ``output_pdf`` containing ``image_list`` arranged on A4 pages."""
 
-        # Draw image at exact DPI resolution
-        c.drawImage(temp_img, x, y, width=image_width, height=image_height, preserveAspectRatio=True)
-        os.remove(temp_img)
+    page_width, page_height = A4
+    image_width = IMAGE_WIDTH_MM * mm
+    image_height = IMAGE_HEIGHT_MM * mm
+    margin_x = MARGIN_MM * mm
+    margin_y = MARGIN_MM * mm
+    padding_x = PADDING_MM * mm
+    padding_y = PADDING_MM * mm
+
+    target_width_px = int((IMAGE_WIDTH_MM / MM_TO_INCH) * TARGET_DPI)
+    target_height_px = int((IMAGE_HEIGHT_MM / MM_TO_INCH) * TARGET_DPI)
+
+    cols = int((page_width - 2 * margin_x + padding_x) // (image_width + padding_x))
+    rows = int((page_height - 2 * margin_y + padding_y) // (image_height + padding_y))
+
+    c = canvas.Canvas(output_pdf, pagesize=A4)
+    c.setPageCompression(0)
+
+    x_start = margin_x
+    y_start = page_height - margin_y - image_height
+
+    x = x_start
+    y = y_start
+    col = 0
+    row = 0
+
+    for image_path in image_list:
+        if not os.path.exists(image_path):
+            print(f"Warning: {image_path} not found, skipping")
+            continue
+
+        try:
+            img = Image.open(image_path)
+            resized = img.resize((target_width_px, target_height_px), Image.Resampling.LANCZOS)
+            reader = ImageReader(resized)
+            c.drawImage(reader, x, y, width=image_width, height=image_height, preserveAspectRatio=True)
+        except Exception as exc:  # pragma: no cover - simple script
+            print(f"Error processing {image_path}: {exc}")
+            continue
 
         col += 1
         if col >= cols:
@@ -84,9 +97,26 @@ for image_path in image_list:
         else:
             x += image_width + padding_x
 
-    except Exception as e:
-        print(f"Error with {image_path}: {e}")
+    c.save()
 
-# --- SAVE PDF ---
-c.save()
-print("PDF created:", output_pdf)
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create a PDF proxy sheet from a list of images")
+    parser.add_argument("-i", "--input", default="images.txt", help="path to image list")
+    parser.add_argument("-o", "--output", default="output.pdf", help="output PDF file")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    images = load_image_list(args.input)
+    if not images:
+        print("No images to process")
+        return
+    create_proxy_sheet(images, args.output)
+    print(f"PDF created: {args.output}")
+
+
+if __name__ == "__main__":
+    main()
+
