@@ -1,0 +1,13 @@
+images/Disdrudomancer_Soulstealer.png 4
+images/Drudomancer_Eulogy.png 4
+images/Drudomancer_Respite.png 4
+images/Drudomancer_Soul_Echo.png 4
+images/Drudomancer_Soulcharmer.png 4
+images/Drudomancer_Soulguide.png 4
+images/Drudomancer_Soulhunter.png 4
+images/Drudomancer_Soulspinner.png 4
+images/Drudomancer_Soultamer.png 4
+images/Drudomancer_Soulwisp.png 4
+images/Drudomancer_Spirit_Journey.png 4
+images/Drudomancer_Token.png 4
+images/Envy_of_Drudomancer.png 4
